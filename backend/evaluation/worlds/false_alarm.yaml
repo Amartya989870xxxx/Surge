@@ -1,0 +1,39 @@
+world_id: false_alarm
+title: Acme Storefront (seeded demo)
+reference_time: "2026-09-13T09:00:00Z"
+
+sheets:
+  spreadsheet_id: demo-acme-growth-metrics
+  title: Acme growth metrics (hourly)
+  tabs:
+    metrics_hourly:
+      generator:
+        start: "2026-09-11T09:00:00Z"
+        hours: 48
+        seed: 73
+
+github:
+  repo: acme/storefront
+  deployments:
+    - id: 4405
+      ref: web-v3.1.10
+      sha: "abcabc123123"
+      environment: production
+      created_at: "2026-09-12T11:20:00Z"
+      description: Deploy web-v3.1.10
+      creator: tom-web
+      commits:
+        - sha: "abcabc123123"
+          message: "footer: update copyright year"
+          author: Tom Weber
+          files: [src/layout/Footer.tsx]
+  issues: []
+
+slack:
+  channels:
+    - {id: C04MKTG, name: marketing}
+  messages:
+    - channel: C04MKTG
+      ts: "2026-09-12T17:00:00Z"
+      user: lena.growth
+      text: "Conversion feels a bit soft this week but the dashboard numbers look normal to me."

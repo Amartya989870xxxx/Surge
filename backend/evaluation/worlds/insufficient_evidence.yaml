@@ -1,0 +1,32 @@
+world_id: insufficient_evidence
+title: Acme Storefront (seeded demo)
+reference_time: "2026-09-13T09:00:00Z"
+
+sheets:
+  spreadsheet_id: demo-acme-basic-metrics
+  title: Acme basic metrics (hourly)
+  tabs:
+    metrics_hourly:
+      columns: [timestamp, sessions, conversions, conversion_rate]
+      generator:
+        start: "2026-09-11T09:00:00Z"
+        hours: 48
+        seed: 61
+        changes:
+          - at: "2026-09-12T14:00:00Z"
+            multiply:
+              completion_rate: 0.5
+
+github:
+  repo: acme/storefront
+  deployments: []
+  issues: []
+
+slack:
+  channels:
+    - {id: C04MKTG, name: marketing}
+  messages:
+    - channel: C04MKTG
+      ts: "2026-09-12T15:00:00Z"
+      user: lena.growth
+      text: "Reminder: team offsite planning doc is due Friday."

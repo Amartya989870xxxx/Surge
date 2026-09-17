@@ -1,0 +1,55 @@
+world_id: payment_provider
+title: Acme Storefront (seeded demo)
+reference_time: "2026-09-13T09:00:00Z"
+
+sheets:
+  spreadsheet_id: demo-acme-growth-metrics
+  title: Acme growth metrics (hourly)
+  tabs:
+    metrics_hourly:
+      generator:
+        start: "2026-09-11T09:00:00Z"
+        hours: 48
+        seed: 23
+        changes:
+          - at: "2026-09-12T14:00:00Z"
+            multiply:
+              completion_rate: 0.55
+              payment_error_rate: 9.0
+
+github:
+  repo: acme/storefront
+  deployments:
+    - id: 4398
+      ref: web-v3.1.9
+      sha: "1a2b3c4d5e6f"
+      environment: production
+      created_at: "2026-09-11T16:05:00Z"
+      description: Deploy web-v3.1.9
+      creator: sam-release
+      commits:
+        - sha: "1a2b3c4d5e6f"
+          message: "docs: refresh onboarding guide"
+          author: Sam Ortiz
+          files: [docs/onboarding.md]
+  issues: []
+
+slack:
+  channels:
+    - {id: C01SUPPORT, name: support}
+    - {id: C02ENGCHK, name: eng-checkout}
+    - {id: C03INCIDNT, name: incidents}
+    - {id: C04MKTG, name: marketing}
+  messages:
+    - channel: C03INCIDNT
+      ts: "2026-09-12T14:18:00Z"
+      user: priya.sre
+      text: "Stripe status page shows elevated error rates on card payments in EU. Monitoring."
+    - channel: C01SUPPORT
+      ts: "2026-09-12T14:35:00Z"
+      user: maria.support
+      text: "Lots of customers getting card_declined on cards that worked yesterday."
+    - channel: C02ENGCHK
+      ts: "2026-09-12T14:52:00Z"
+      user: raj.frontend
+      text: "Our own services look healthy; Stripe API is returning errors for a chunk of payment intents."

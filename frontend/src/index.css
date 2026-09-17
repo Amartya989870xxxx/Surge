@@ -1,0 +1,351 @@
+@import "tailwindcss";
+
+/* =========================================================================
+   NOHEMI TYPEFACE - 9 WEIGHTS (100 THIN TO 900 BLACK)
+   ========================================================================= */
+@font-face {
+  font-family: 'Nohemi';
+  src: url('/fonts/nohemi/Nohemi-Thin.ttf') format('truetype');
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Nohemi';
+  src: url('/fonts/nohemi/Nohemi-ExtraLight.ttf') format('truetype');
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Nohemi';
+  src: url('/fonts/nohemi/Nohemi-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Nohemi';
+  src: url('/fonts/nohemi/Nohemi-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Nohemi';
+  src: url('/fonts/nohemi/Nohemi-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Nohemi';
+  src: url('/fonts/nohemi/Nohemi-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Nohemi';
+  src: url('/fonts/nohemi/Nohemi-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Nohemi';
+  src: url('/fonts/nohemi/Nohemi-ExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Nohemi';
+  src: url('/fonts/nohemi/Nohemi-Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Caacupe One';
+  src: url('/fonts/caacupe/CaacupeOne-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-nohemi: 'Nohemi', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-caacupe: 'Caacupe One', 'Nohemi', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Pitch-black Dashboard Theme */
+  --color-dash-bg: #000000;
+  --color-dash-elevated: #050505;
+  --color-dash-surface: #0C0C0E;
+  --color-dash-surface-hover: #141418;
+  --color-dash-border: #18181C;
+  --color-dash-border-subtle: #222228;
+
+  /* Distinct Landing Theme (Midnight Slate) */
+  --color-landing-bg: #090D16;
+  --color-landing-elevated: #0F1626;
+  --color-landing-surface: #141D30;
+  --color-landing-border: #1E2B45;
+
+  /* Shared Typography & Status */
+  --color-surge-text: #F5F5F5;
+  --color-surge-secondary: #A1A1AA;
+  --color-surge-muted: #71717A;
+
+  --color-surge-accent: #6366F1;
+  --color-surge-accent-hover: #4F46E5;
+  --color-surge-accent-dim: rgba(99, 102, 241, 0.15);
+
+  --color-surge-success: #10B981;
+  --color-surge-success-dim: rgba(16, 185, 129, 0.15);
+
+  --color-surge-warning: #F59E0B;
+  --color-surge-warning-dim: rgba(245, 158, 11, 0.15);
+
+  --color-surge-danger: #EF4444;
+  --color-surge-danger-dim: rgba(239, 68, 68, 0.15);
+
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+/* Landing Page Typography Rule */
+.landing-page {
+  font-family: 'Nohemi', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: -0.015em;
+}
+
+.landing-page h1,
+.landing-page h2,
+.landing-page h3,
+.landing-page h4,
+.landing-page button,
+.landing-page input,
+.landing-page nav,
+.landing-page p,
+.landing-page span,
+.landing-page a {
+  font-family: 'Nohemi', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #000000;
+  color: #F5F5F5;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+::-webkit-scrollbar-thumb {
+  background: #1F1F24;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2E2E36;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-surge-accent);
+  outline-offset: 2px;
+}
+
+/* Hub-and-Spoke Agent Graph Animations */
+@keyframes agentWorkingBreath {
+  0%, 100% {
+    border-color: rgba(99, 102, 241, 0.6);
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  50% {
+    border-color: rgba(129, 140, 248, 1);
+    opacity: 1;
+    transform: scale(1.015);
+  }
+}
+
+.agent-node-working {
+  animation: agentWorkingBreath 1.5s ease-in-out infinite;
+}
+
+@keyframes edgePulseForward {
+  0% {
+    stroke-dashoffset: 125;
+    opacity: 1;
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0.2;
+  }
+}
+
+@keyframes edgePulseReverse {
+  0% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 125;
+    opacity: 0.2;
+  }
+}
+
+.edge-pulse-forward {
+  stroke-dasharray: 25 100;
+  animation: edgePulseForward 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.edge-pulse-reverse {
+  stroke-dasharray: 25 100;
+  animation: edgePulseReverse 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Sign-In Component Animations */
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0px);
+  }
+}
+
+@keyframes slideRightIn {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateX(0px);
+  }
+}
+
+@keyframes testimonialIn {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0px) scale(1);
+  }
+}
+
+.animate-element {
+  opacity: 0;
+  animation: fadeSlideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-right {
+  opacity: 0;
+  animation: slideRightIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-testimonial {
+  opacity: 0;
+  animation: testimonialIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-delay-100 { animation-delay: 100ms; }
+.animate-delay-200 { animation-delay: 200ms; }
+.animate-delay-300 { animation-delay: 300ms; }
+.animate-delay-400 { animation-delay: 400ms; }
+.animate-delay-500 { animation-delay: 500ms; }
+.animate-delay-600 { animation-delay: 600ms; }
+.animate-delay-700 { animation-delay: 700ms; }
+.animate-delay-800 { animation-delay: 800ms; }
+.animate-delay-900 { animation-delay: 900ms; }
+.animate-delay-1000 { animation-delay: 1000ms; }
+.animate-delay-1200 { animation-delay: 1200ms; }
+.animate-delay-1400 { animation-delay: 1400ms; }
+
+/* Flowing wave streamlines animation */
+@keyframes waveDashFlow {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -400;
+  }
+}
+
+.animate-wave-flow {
+  animation: waveDashFlow 25s linear infinite;
+}
+
+/* Continuous Horizontal Reel for Section 02 Step Cards */
+@keyframes horizontalCardsScroll {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-cards-marquee {
+  display: flex;
+  width: max-content;
+  animation: horizontalCardsScroll 46s linear infinite;
+  will-change: transform;
+}
+
+.animate-cards-marquee:hover {
+  animation-play-state: paused;
+}
+
+.font-caacupe {
+  font-family: var(--font-caacupe);
+}
+
+/* Celestial Moon Horizon Atmosphere */
+.bg-ruixen-moon {
+  background-image: radial-gradient(circle at 50% 120%, rgba(99, 102, 241, 0.35) 0%, rgba(67, 56, 202, 0.2) 25%, rgba(13, 15, 24, 0.95) 60%, #000000 100%);
+}
+

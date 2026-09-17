@@ -1,0 +1,22 @@
+scenario_id: conflicting_evidence_01
+title: Checkout-looking symptoms, but tracking is the cause
+category: ambiguity
+description: A checkout release and a customer complaint point at checkout, but backend orders are normal. Counter-evidence must win.
+request: "Conversion collapsed after yesterday's checkout release and a customer says checkout is broken. Investigate and coordinate the response."
+world: conflicting_evidence
+ground_truth:
+  expected_outcome: tracking_failure
+  required_evidence:
+    - {key: conversion_drop, app: sheets, source_type: metric_anomaly}
+    - {key: backend_orders_stable, app: sheets, source_type: tracking_consistency}
+    - {key: orders_normal_report, app: slack, source_type: message, content_contains: "totally normal"}
+  relevant_evidence:
+    - {app: github, source_type: code_change}
+    - {app: github, source_type: deployment}
+    - {app: sheets, source_type: funnel_analysis}
+    - {app: sheets, source_type: error_rate_analysis}
+    - {app: sheets, source_type: traffic_mix}
+    - {app: slack, source_type: message}
+  expected_action: create_github_issue
+  approval_required: true
+  expect_verified: true

@@ -1,0 +1,79 @@
+# Seeded provider data only. No labels about causes live here.
+world_id: checkout_regression
+title: Acme Storefront (seeded demo)
+reference_time: "2026-09-13T09:00:00Z"
+
+sheets:
+  spreadsheet_id: demo-acme-growth-metrics
+  title: Acme growth metrics (hourly)
+  tabs:
+    metrics_hourly:
+      generator:
+        start: "2026-09-11T09:00:00Z"
+        hours: 48
+        seed: 11
+        changes:
+          - at: "2026-09-12T14:00:00Z"
+            multiply:
+              completion_rate: 0.37
+
+github:
+  repo: acme/storefront
+  deployments:
+    - id: 4398
+      ref: web-v3.1.9
+      sha: "1a2b3c4d5e6f"
+      environment: production
+      created_at: "2026-09-11T16:05:00Z"
+      description: Deploy web-v3.1.9
+      creator: sam-release
+      commits:
+        - sha: "1a2b3c4d5e6f"
+          message: "docs: refresh onboarding guide"
+          author: Sam Ortiz
+          files: [docs/onboarding.md]
+    - id: 4411
+      ref: checkout-v2.4.1
+      sha: "9f3c2ab81d7e"
+      environment: production
+      created_at: "2026-09-12T13:42:00Z"
+      description: Deploy checkout-v2.4.1
+      creator: dana-eng
+      commits:
+        - sha: "9f3c2ab81d7e"
+          message: "checkout: stricter card validation in PaymentForm (#812)"
+          author: Dana Kim
+          files: [src/checkout/PaymentForm.tsx, src/checkout/validation.ts]
+        - sha: "77e0a1c4b2d9"
+          message: "checkout: refactor order submit handler (#815)"
+          author: Dana Kim
+          files: [src/checkout/useSubmitOrder.ts]
+  issues: []
+
+slack:
+  channels:
+    - {id: C01SUPPORT, name: support}
+    - {id: C02ENGCHK, name: eng-checkout}
+    - {id: C03INCIDNT, name: incidents}
+    - {id: C04MKTG, name: marketing}
+  messages:
+    - channel: C04MKTG
+      ts: "2026-09-12T09:10:00Z"
+      user: lena.growth
+      text: "Weekly newsletter went out this morning, nothing unusual planned for today."
+    - channel: C01SUPPORT
+      ts: "2026-09-12T14:26:00Z"
+      user: maria.support
+      text: "Several customers say the Place order button just spins and they can't finish checkout. Anyone seeing this?"
+    - channel: C02ENGCHK
+      ts: "2026-09-12T14:48:00Z"
+      user: raj.frontend
+      text: "Seeing a spike in JS errors on /checkout since ~2pm, looks like a validation exception in the payment form."
+    - channel: C03INCIDNT
+      ts: "2026-09-12T15:05:00Z"
+      user: oncall.bot
+      text: "Customer reports: checkout failing after entering card details (4 tickets in the last hour)."
+    - channel: C04MKTG
+      ts: "2026-09-12T15:20:00Z"
+      user: lena.growth
+      text: "Conversion dashboard looks rough today — is something going on with checkout?"

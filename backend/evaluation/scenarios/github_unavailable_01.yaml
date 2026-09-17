@@ -1,0 +1,27 @@
+scenario_id: github_unavailable_01
+title: GitHub unavailable (no deployment history, no write target)
+category: availability
+description: >
+  GitHub is down. Release timing cannot be checked and no incident issue can be opened. Either a capped diagnosis with a
+  blocked action, or an explicit insufficient-evidence result, is acceptable; a confident unblocked result is not.
+request: "Something changed after yesterday's release. Our conversion rate dropped. Investigate the cause and coordinate the response."
+world: checkout_regression
+faults:
+  - {target: github, type: unavailable}
+ground_truth:
+  expected_outcome: checkout_regression
+  acceptable_outcomes: [insufficient_evidence]
+  required_evidence:
+    - {key: conversion_drop, app: sheets, source_type: metric_anomaly}
+    - {key: checkout_funnel, app: sheets, source_type: funnel_analysis}
+  relevant_evidence:
+    - {app: sheets, source_type: tracking_consistency}
+    - {app: sheets, source_type: error_rate_analysis}
+    - {app: sheets, source_type: traffic_mix}
+    - {app: slack, source_type: message}
+  expected_action: blocked
+  acceptable_actions: [none]
+  approval_required: true
+  expect_degraded: true
+  recovery_expected: true
+  max_confidence: 0.7

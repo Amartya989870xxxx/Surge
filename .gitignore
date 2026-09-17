@@ -1,0 +1,31 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+.env
+.env.*
+!.env.example
+surge.db
+surge.db-*
+*.db
+evaluation/reports/*
+!evaluation/reports/latest.md
+!evaluation/reports/latest.json
+.DS_Store
+
+# Internal planning/handoff docs and scratch media - local reference only, never pushed.
+/docs/
+/assets/
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+
+# Editor/OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+server.log
+server.pid

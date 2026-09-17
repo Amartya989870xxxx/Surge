@@ -1,0 +1,22 @@
+scenario_id: repeated_request_01
+title: The same request is submitted twice
+category: action_reliability
+description: A second identical investigation must find the incident the first one filed and update it, not file another.
+request: "Something changed after yesterday's release. Our conversion rate dropped. Investigate the cause and coordinate the response."
+world: checkout_regression
+repeat: 2
+ground_truth:
+  expected_outcome: checkout_regression
+  required_evidence:
+    - {key: conversion_drop, app: sheets, source_type: metric_anomaly}
+    - {key: checkout_code_change, app: github, source_type: code_change, record_id: "4411:changes"}
+  relevant_evidence:
+    - {app: github, source_type: deployment}
+    - {app: sheets, source_type: funnel_analysis}
+    - {app: sheets, source_type: tracking_consistency}
+    - {app: sheets, source_type: error_rate_analysis}
+    - {app: sheets, source_type: traffic_mix}
+    - {app: slack, source_type: message}
+  expected_action: comment_github_issue
+  approval_required: true
+  expect_verified: true

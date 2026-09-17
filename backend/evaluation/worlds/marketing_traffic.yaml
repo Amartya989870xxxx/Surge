@@ -1,0 +1,55 @@
+world_id: marketing_traffic
+title: Acme Storefront (seeded demo)
+reference_time: "2026-09-13T09:00:00Z"
+
+sheets:
+  spreadsheet_id: demo-acme-growth-metrics
+  title: Acme growth metrics (hourly)
+  tabs:
+    metrics_hourly:
+      generator:
+        start: "2026-09-11T09:00:00Z"
+        hours: 48
+        seed: 31
+        changes:
+          - at: "2026-09-12T14:00:00Z"
+            set:
+              extra_paid_sessions: 900
+              extra_intent: 0.15
+
+github:
+  repo: acme/storefront
+  deployments:
+    - id: 4398
+      ref: web-v3.1.9
+      sha: "1a2b3c4d5e6f"
+      environment: production
+      created_at: "2026-09-11T16:05:00Z"
+      description: Deploy web-v3.1.9
+      creator: sam-release
+      commits:
+        - sha: "1a2b3c4d5e6f"
+          message: "docs: refresh onboarding guide"
+          author: Sam Ortiz
+          files: [docs/onboarding.md]
+  issues: []
+
+slack:
+  channels:
+    - {id: C01SUPPORT, name: support}
+    - {id: C02ENGCHK, name: eng-checkout}
+    - {id: C03INCIDNT, name: incidents}
+    - {id: C04MKTG, name: marketing}
+  messages:
+    - channel: C04MKTG
+      ts: "2026-09-12T13:55:00Z"
+      user: lena.growth
+      text: "TikTok creator campaign goes live at 2pm — expect a big traffic spike!"
+    - channel: C04MKTG
+      ts: "2026-09-12T15:10:00Z"
+      user: lena.growth
+      text: "Campaign traffic is pouring in, sessions nearly doubled."
+    - channel: C01SUPPORT
+      ts: "2026-09-12T16:00:00Z"
+      user: maria.support
+      text: "Quiet day in support, no checkout complaints."

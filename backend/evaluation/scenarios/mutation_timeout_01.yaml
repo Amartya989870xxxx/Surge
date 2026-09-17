@@ -1,0 +1,24 @@
+scenario_id: mutation_timeout_01
+title: Issue creation times out after GitHub applied it
+category: action_reliability
+description: The create-issue call times out but the issue exists. Surge must check provider state instead of retrying blindly.
+request: "Something changed after yesterday's release. Our conversion rate dropped. Investigate the cause and coordinate the response."
+world: checkout_regression
+faults:
+  - {target: github.create_issue, type: timeout_after_commit, times: 1}
+ground_truth:
+  expected_outcome: checkout_regression
+  required_evidence:
+    - {key: conversion_drop, app: sheets, source_type: metric_anomaly}
+    - {key: checkout_code_change, app: github, source_type: code_change, record_id: "4411:changes"}
+  relevant_evidence:
+    - {app: github, source_type: deployment}
+    - {app: sheets, source_type: funnel_analysis}
+    - {app: sheets, source_type: tracking_consistency}
+    - {app: sheets, source_type: error_rate_analysis}
+    - {app: sheets, source_type: traffic_mix}
+    - {app: slack, source_type: message}
+  expected_action: create_github_issue
+  approval_required: true
+  expect_verified: true
+  recovery_expected: true

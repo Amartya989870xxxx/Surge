@@ -1,0 +1,54 @@
+world_id: conflicting_evidence
+title: Acme Storefront (seeded demo)
+reference_time: "2026-09-13T09:00:00Z"
+
+sheets:
+  spreadsheet_id: demo-acme-growth-metrics
+  title: Acme growth metrics (hourly)
+  tabs:
+    metrics_hourly:
+      generator:
+        start: "2026-09-11T09:00:00Z"
+        hours: 48
+        seed: 59
+        changes:
+          - at: "2026-09-12T14:00:00Z"
+            multiply:
+              tracking_ratio: 0.35
+
+github:
+  repo: acme/storefront
+  deployments:
+    - id: 4420
+      ref: checkout-v2.5.0
+      sha: "5e5e5e5e1f2a"
+      environment: production
+      created_at: "2026-09-12T13:35:00Z"
+      description: Deploy checkout-v2.5.0
+      creator: dana-eng
+      commits:
+        - sha: "5e5e5e5e1f2a"
+          message: "checkout: new layout, move analytics snippet into checkout shell (#830)"
+          author: Dana Kim
+          files: [src/checkout/CheckoutLayout.tsx, src/analytics/gtag.ts]
+  issues: []
+
+slack:
+  channels:
+    - {id: C01SUPPORT, name: support}
+    - {id: C02ENGCHK, name: eng-checkout}
+    - {id: C03INCIDNT, name: incidents}
+    - {id: C04MKTG, name: marketing}
+  messages:
+    - channel: C01SUPPORT
+      ts: "2026-09-12T14:40:00Z"
+      user: maria.support
+      text: "One customer on X claims checkout is broken for them, can't reproduce."
+    - channel: C02ENGCHK
+      ts: "2026-09-12T15:15:00Z"
+      user: raj.frontend
+      text: "Orders in the DB look totally normal since the checkout-v2.5.0 deploy."
+    - channel: C04MKTG
+      ts: "2026-09-12T15:40:00Z"
+      user: lena.growth
+      text: "Why did the conversion dashboard drop to almost zero after 2pm?"
