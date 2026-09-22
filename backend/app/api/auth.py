@@ -66,5 +66,5 @@ async def me(user: User = Depends(require_user)):
 @router.put("/profile", response_model=ProfileOut)
 async def update_profile(body: ProfileUpdate, user: User = Depends(require_user), services: Services = Depends(get_services)):
     fields = body.model_dump(exclude_unset=True)
-    updated = services.users.update_profile(user.id, **fields)
+    updated = await services.users.aupdate_profile(user.id, **fields)
     return _out(updated)

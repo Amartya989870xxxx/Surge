@@ -18,7 +18,7 @@ async def get_current_user_optional(request: Request, authorization: str | None 
         claims = await services.firebase.verify(token)
     except FirebaseAuthError as exc:
         raise SurgeAPIError(ErrorCode.AUTH_FAILED, str(exc), http_status=401) from exc
-    return services.users.upsert_from_claims(claims)
+    return await services.users.aupsert_from_claims(claims)
 
 
 async def require_user(user: User | None = Depends(get_current_user_optional)) -> User:

@@ -177,35 +177,31 @@ export const SignInPage: React.FC<SignInPageProps> = ({
     setIsSignUpMode(initialMode === 'signup');
   }, [initialMode]);
 
-  // Load remembered credentials from user client browser cache
+  // Load the remembered email (only) from the browser cache. The password is never persisted
+  // client-side - Firebase's own browserLocalPersistence already keeps the user signed in
+  // securely without ever needing the raw password stored in localStorage, where it would be
+  // plaintext and readable by any script that can run on the page (e.g. via XSS).
   React.useEffect(() => {
     try {
-      const saved = localStorage.getItem('surge_remembered_credentials');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.email) setEmail(parsed.email);
-        if (parsed.password) setPassword(parsed.password);
+      const savedEmail = localStorage.getItem('surge_remembered_email');
+      if (savedEmail) {
+        setEmail(savedEmail);
         setRememberMe(true);
       }
     } catch (e) {
-      console.warn('Could not retrieve cached credentials', e);
+      console.warn('Could not retrieve cached email', e);
     }
   }, []);
 
   const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (rememberMe) {
-      try {
-        localStorage.setItem(
-          'surge_remembered_credentials',
-          JSON.stringify({ email: email.trim(), password })
-        );
-      } catch {}
-    } else {
-      try {
-        localStorage.removeItem('surge_remembered_credentials');
-      } catch {}
-    }
+    try {
+      if (rememberMe) {
+        localStorage.setItem('surge_remembered_email', email.trim());
+      } else {
+        localStorage.removeItem('surge_remembered_email');
+      }
+    } catch {}
 
     if (onSignIn) {
       onSignIn(e, isSignUpMode, rememberMe);

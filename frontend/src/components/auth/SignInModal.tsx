@@ -74,16 +74,17 @@ export const SignInModal: React.FC<SignInModalProps> = ({
         await signInWithEmail(email, password);
       }
 
-      // Cache credentials locally on user device if rememberMe is enabled
-      if (rememberMe) {
-        try {
-          localStorage.setItem('surge_remembered_credentials', JSON.stringify({ email, password }));
-        } catch {}
-      } else {
-        try {
-          localStorage.removeItem('surge_remembered_credentials');
-        } catch {}
-      }
+      // Remember only the email for autofill convenience. Firebase's own browserLocalPersistence
+      // (see lib/auth/firebase.ts) already keeps the user signed in securely - it never needs the
+      // raw password. Storing the actual password in localStorage would put it in plaintext,
+      // readable by any script that can run on the page (e.g. via XSS), with no protection at all.
+      try {
+        if (rememberMe) {
+          localStorage.setItem('surge_remembered_email', email);
+        } else {
+          localStorage.removeItem('surge_remembered_email');
+        }
+      } catch {}
 
       const profile = await getProfile();
       try {

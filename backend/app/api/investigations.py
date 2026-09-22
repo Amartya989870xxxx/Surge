@@ -43,13 +43,49 @@ router = APIRouter(prefix="/api/investigations", tags=["investigations"])
 _TERMINAL_EVENTS = {EventType.COMPLETED.value, EventType.FAILED.value, EventType.CANCELLED.value}
 
 
-def _load(services: Services, investigation_id: str) -> Investigation:
+def _load(services: Services, investigation_id: str, user: User | None = None) -> Investigation:
     with services.db.session() as s:
         inv = s.get(Investigation, investigation_id)
         if inv is None:
             raise SurgeAPIError(ErrorCode.NOT_FOUND, "Investigation not found", http_status=404)
         s.expunge(inv)
-        return inv
+    # Ownership check applies only when the investigation belongs to a real, authenticated user
+    # (a row in `users`). The pre-auth "session_id" convenience - an arbitrary client-supplied
+    # string with no real credential behind it - keeps its original open-by-ID behavior; it was
+    # never a security boundary. A real user's data is only visible to that same authenticated
+    # user. 404, not 403, so a non-owner can't even confirm the ID exists (avoids enumeration).
+    owner = services.users.get(inv.session_id)
+    if owner is not None and (user is None or user.id != owner.id):
+        raise SurgeAPIError(ErrorCode.NOT_FOUND, "Investigation not found", http_status=404)
+    return inv
+
+
+async def _aload(services: Services, investigation_id: str, user: User | None = None) -> Investigation:
+    """Async twin of _load(), for endpoints migrated to AsyncSession. Same ownership rule."""
+    async with services.db.async_session() as s:
+        inv = await s.get(Investigation, investigation_id)
+        if inv is None:
+            raise SurgeAPIError(ErrorCode.NOT_FOUND, "Investigation not found", http_status=404)
+        s.expunge(inv)
+    owner = await services.users.aget(inv.session_id)
+    if owner is not None and (user is None or user.id != owner.id):
+        raise SurgeAPIError(ErrorCode.NOT_FOUND, "Investigation not found", http_status=404)
+    return inv
+
+
+async def _aactions(services: Services, investigation_ids: list[str]) -> dict[str, list[Action]]:
+    """Async twin of _actions()."""
+    out: dict[str, list[Action]] = {i: [] for i in investigation_ids}
+    if not investigation_ids:
+        return out
+    async with services.db.async_session() as s:
+        result = await s.scalars(
+            select(Action).where(Action.investigation_id.in_(investigation_ids)).order_by(Action.created_at)
+        )
+        for a in result.all():
+            s.expunge(a)
+            out[a.investigation_id].append(a)
+    return out
 
 
 def _actions(services: Services, investigation_ids: list[str]) -> dict[str, list[Action]]:
@@ -88,7 +124,7 @@ async def create_investigation(
         persona=body.persona or (user.persona if user else None),
     )
     services.runtime.spawn(inv_id, services.orchestrator.run(inv_id))
-    inv = _load(services, inv_id)
+    inv = _load(services, inv_id, user)
     return {
         "id": inv.id,
         "status": inv.status,
@@ -134,31 +170,45 @@ async def list_investigations(
 
 
 @router.get("/{investigation_id}", response_model=InvestigationDetailOut)
-async def get_investigation(investigation_id: str, services: Services = Depends(get_services)):
-    inv = _load(services, investigation_id)
-    with services.db.session() as s:
+async def get_investigation(
+    investigation_id: str,
+    user: User | None = Depends(get_current_user_optional),
+    services: Services = Depends(get_services),
+):
+    inv = await _aload(services, investigation_id, user)
+    async with services.db.async_session() as s:
         counts = {
-            "events": s.scalar(select(func.count()).where(InvestigationEvent.investigation_id == inv.id)) or 0,
-            "evidence": s.scalar(select(func.count()).where(EvidenceItem.investigation_id == inv.id)) or 0,
-            "hypotheses": s.scalar(select(func.count()).where(Hypothesis.investigation_id == inv.id)) or 0,
-            "claims": s.scalar(select(func.count()).where(Claim.investigation_id == inv.id)) or 0,
+            "events": (await s.scalar(select(func.count()).where(InvestigationEvent.investigation_id == inv.id))) or 0,
+            "evidence": (await s.scalar(select(func.count()).where(EvidenceItem.investigation_id == inv.id))) or 0,
+            "hypotheses": (await s.scalar(select(func.count()).where(Hypothesis.investigation_id == inv.id))) or 0,
+            "claims": (await s.scalar(select(func.count()).where(Claim.investigation_id == inv.id))) or 0,
         }
     try:
         connectors = services.runtime.connectors_for(inv).public()
     except KeyError:
         connectors = [{"app": app, "mode": mode} for app, mode in (inv.connector_profile or {}).get("apps", {}).items()]
-    return ser.investigation_detail(inv, _actions(services, [inv.id])[inv.id], connectors, counts)
+    actions = await _aactions(services, [inv.id])
+    return ser.investigation_detail(inv, actions[inv.id], connectors, counts)
 
 
 @router.get("/{investigation_id}/events", response_model=list[EventOut])
-async def get_events(investigation_id: str, after: int = Query(default=0, ge=0), services: Services = Depends(get_services)):
-    _load(services, investigation_id)
+async def get_events(
+    investigation_id: str,
+    after: int = Query(default=0, ge=0),
+    user: User | None = Depends(get_current_user_optional),
+    services: Services = Depends(get_services),
+):
+    _load(services, investigation_id, user)
     return services.bus.history(investigation_id, after)
 
 
 @router.get("/{investigation_id}/evidence", response_model=list[EvidenceOut])
-async def get_evidence(investigation_id: str, services: Services = Depends(get_services)):
-    _load(services, investigation_id)
+async def get_evidence(
+    investigation_id: str,
+    user: User | None = Depends(get_current_user_optional),
+    services: Services = Depends(get_services),
+):
+    _load(services, investigation_id, user)
     with services.db.session() as s:
         evidence = s.scalars(
             select(EvidenceItem)
@@ -171,8 +221,12 @@ async def get_evidence(investigation_id: str, services: Services = Depends(get_s
 
 
 @router.get("/{investigation_id}/hypotheses", response_model=list[HypothesisOut])
-async def get_hypotheses(investigation_id: str, services: Services = Depends(get_services)):
-    _load(services, investigation_id)
+async def get_hypotheses(
+    investigation_id: str,
+    user: User | None = Depends(get_current_user_optional),
+    services: Services = Depends(get_services),
+):
+    _load(services, investigation_id, user)
     with services.db.session() as s:
         hyps = s.scalars(select(Hypothesis).where(Hypothesis.investigation_id == investigation_id)).all()
         links = s.scalars(select(EvidenceLink).where(EvidenceLink.investigation_id == investigation_id)).all()
@@ -181,8 +235,12 @@ async def get_hypotheses(investigation_id: str, services: Services = Depends(get
 
 
 @router.get("/{investigation_id}/actions", response_model=list[ActionOut])
-async def get_actions(investigation_id: str, services: Services = Depends(get_services)):
-    _load(services, investigation_id)
+async def get_actions(
+    investigation_id: str,
+    user: User | None = Depends(get_current_user_optional),
+    services: Services = Depends(get_services),
+):
+    _load(services, investigation_id, user)
     actions = _actions(services, [investigation_id])[investigation_id]
     with services.db.session() as s:
         verifications = s.scalars(select(Verification).where(Verification.action_id.in_([a.id for a in actions]))).all()
@@ -190,8 +248,12 @@ async def get_actions(investigation_id: str, services: Services = Depends(get_se
 
 
 @router.get("/{investigation_id}/claims", response_model=list[ClaimOut])
-async def get_claims(investigation_id: str, services: Services = Depends(get_services)):
-    _load(services, investigation_id)
+async def get_claims(
+    investigation_id: str,
+    user: User | None = Depends(get_current_user_optional),
+    services: Services = Depends(get_services),
+):
+    _load(services, investigation_id, user)
     with services.db.session() as s:
         claims = s.scalars(
             select(Claim).where(Claim.investigation_id == investigation_id).order_by(Claim.position)
@@ -200,7 +262,13 @@ async def get_claims(investigation_id: str, services: Services = Depends(get_ser
 
 
 @router.post("/{investigation_id}/approve", response_model=ActionOut)
-async def approve_action(investigation_id: str, body: ApproveRequest, services: Services = Depends(get_services)):
+async def approve_action(
+    investigation_id: str,
+    body: ApproveRequest,
+    user: User | None = Depends(get_current_user_optional),
+    services: Services = Depends(get_services),
+):
+    _load(services, investigation_id, user)  # ownership check before allowing a mutation
     await services.orchestrator.decide_action(
         investigation_id, body.action_id, body.approved, decided_by=body.decided_by, comment=body.comment
     )
@@ -211,18 +279,27 @@ async def approve_action(investigation_id: str, body: ApproveRequest, services: 
 
 
 @router.post("/{investigation_id}/cancel")
-async def cancel_investigation(investigation_id: str, services: Services = Depends(get_services)) -> dict:
+async def cancel_investigation(
+    investigation_id: str,
+    user: User | None = Depends(get_current_user_optional),
+    services: Services = Depends(get_services),
+) -> dict:
+    _load(services, investigation_id, user)
     status = await services.orchestrator.cancel(investigation_id)
     return {"id": investigation_id, "status": status}
 
 
 @router.post("/{investigation_id}/rerun", status_code=202, response_model=InvestigationCreated)
 async def rerun_investigation(
-    investigation_id: str, body: RerunRequest | None = None, services: Services = Depends(get_services)
+    investigation_id: str,
+    body: RerunRequest | None = None,
+    user: User | None = Depends(get_current_user_optional),
+    services: Services = Depends(get_services),
 ):
+    _load(services, investigation_id, user)
     new_id = services.orchestrator.rerun(investigation_id, clear_faults=(body or RerunRequest()).clear_faults)
     services.runtime.spawn(new_id, services.orchestrator.run(new_id))
-    inv = _load(services, new_id)
+    inv = _load(services, new_id, user)
     return {
         "id": inv.id,
         "status": inv.status,
@@ -247,9 +324,10 @@ async def stream_events(
     investigation_id: str,
     request: Request,
     after: int = Query(default=0, ge=0),
+    user: User | None = Depends(get_current_user_optional),
     services: Services = Depends(get_services),
 ):
-    _load(services, investigation_id)
+    _load(services, investigation_id, user)
     last_event_id = request.headers.get("last-event-id")
     start = int(last_event_id) if last_event_id and last_event_id.isdigit() else after
 

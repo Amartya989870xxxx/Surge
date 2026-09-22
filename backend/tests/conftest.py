@@ -57,10 +57,12 @@ async def client(settings):
         yield c
 
 
-async def wait_for_status(client, investigation_id: str, statuses: set[str], timeout: float = 30.0) -> dict:
+async def wait_for_status(
+    client, investigation_id: str, statuses: set[str], timeout: float = 30.0, headers: dict | None = None
+) -> dict:
     deadline = time.monotonic() + timeout
     while True:
-        body = (await client.get(f"/api/investigations/{investigation_id}")).json()
+        body = (await client.get(f"/api/investigations/{investigation_id}", headers=headers)).json()
         if body["status"] in statuses:
             return body
         if time.monotonic() > deadline:

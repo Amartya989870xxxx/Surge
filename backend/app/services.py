@@ -61,6 +61,7 @@ class Services:
     async def aclose(self) -> None:
         await self.runtime.shutdown()
         await self.http.aclose()
+        await self.db.aclose()
 
 
 def build_services(settings: Settings, llm: StructuredLLM | None = None) -> Services:

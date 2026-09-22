@@ -153,6 +153,33 @@ async def test_investigations_are_owned_by_the_signed_in_user(client, firebase_i
     assert inv_id not in [i["id"] for i in anonymous_view["items"]]
 
 
+async def test_a_different_signed_in_user_cannot_access_someone_elses_investigation(client, firebase_identity):
+    _, owner_headers = firebase_identity("user_owner_2")
+    inv_id = await start(client, headers=owner_headers)
+    await wait_for_status(client, inv_id, TERMINAL_OR_WAITING, headers=owner_headers)
+
+    _, intruder_headers = firebase_identity("user_intruder")
+    for path in ("", "/events", "/evidence", "/hypotheses", "/actions", "/claims"):
+        resp = await client.get(f"/api/investigations/{inv_id}{path}", headers=intruder_headers)
+        assert resp.status_code == 404, f"{path} leaked to a non-owner"
+
+    approve = await client.post(
+        f"/api/investigations/{inv_id}/approve", json={"action_id": "act_000000000000"}, headers=intruder_headers
+    )
+    assert approve.status_code == 404, "a non-owner must not be able to approve someone else's action"
+
+    cancel = await client.post(f"/api/investigations/{inv_id}/cancel", headers=intruder_headers)
+    assert cancel.status_code == 404, "a non-owner must not be able to cancel someone else's investigation"
+
+    # An unauthenticated caller is treated the same as any other non-owner.
+    anonymous = await client.get(f"/api/investigations/{inv_id}")
+    assert anonymous.status_code == 404
+
+    # The real owner is unaffected.
+    own_view = await client.get(f"/api/investigations/{inv_id}", headers=owner_headers)
+    assert own_view.status_code == 200
+
+
 async def test_starting_oauth_requires_sign_in_and_state_carries_the_user(client, firebase_identity):
     _, headers = firebase_identity("user_connector")
     # Not configured on the server, but auth is checked first and must succeed before that 409.
@@ -166,14 +193,14 @@ async def test_engineer_persona_keeps_investigating_past_the_stop_threshold(clie
     _, headers = firebase_identity("user_eng", **{})
     await client.put("/api/auth/profile", headers=headers, json={"persona": "engineer"})
     inv_id = await start(client, headers=headers)
-    detail = await wait_for_status(client, inv_id, TERMINAL_OR_WAITING)
+    detail = await wait_for_status(client, inv_id, TERMINAL_OR_WAITING, headers=headers)
 
     default_run = await start(client)
     default_detail = await wait_for_status(client, default_run, TERMINAL_OR_WAITING)
 
     assert detail["strongest_hypothesis"]["kind"] == default_detail["strongest_hypothesis"]["kind"]
     assert detail["tool_call_count"] >= default_detail["tool_call_count"]
-    events = (await client.get(f"/api/investigations/{inv_id}/events")).json()
+    events = (await client.get(f"/api/investigations/{inv_id}/events", headers=headers)).json()
     stop_event = next(e for e in events if e["event_type"] == "SUFFICIENCY_CHECK")
     assert "no_remaining_leads_(thorough_mode)" in stop_event["data"]["checks"]
 
@@ -182,7 +209,7 @@ async def test_student_persona_gets_a_plain_language_note_in_the_summary(client,
     _, headers = firebase_identity("user_student")
     await client.put("/api/auth/profile", headers=headers, json={"persona": "student"})
     inv_id = await start(client, headers=headers)
-    detail = await wait_for_status(client, inv_id, TERMINAL_OR_WAITING)
+    detail = await wait_for_status(client, inv_id, TERMINAL_OR_WAITING, headers=headers)
     assert "in plain terms" in detail["final_summary"].lower()
     assert detail["intent"]["persona"] == "student"
 
@@ -190,7 +217,7 @@ async def test_student_persona_gets_a_plain_language_note_in_the_summary(client,
 async def test_persona_never_changes_the_outcome_or_confidence(client, firebase_identity):
     _, headers = firebase_identity("user_founder")
     await client.put("/api/auth/profile", headers=headers, json={"persona": "founder"})
-    with_persona = await wait_for_status(client, await start(client, headers=headers), TERMINAL_OR_WAITING)
+    with_persona = await wait_for_status(client, await start(client, headers=headers), TERMINAL_OR_WAITING, headers=headers)
     without_persona = await wait_for_status(client, await start(client), TERMINAL_OR_WAITING)
     assert with_persona["outcome"] == without_persona["outcome"]
     assert with_persona["strongest_hypothesis"]["kind"] == without_persona["strongest_hypothesis"]["kind"]

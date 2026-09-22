@@ -9,15 +9,19 @@ dependencies = [
     "uvicorn[standard]>=0.30",
     "pydantic>=2.7",
     "pydantic-settings>=2.3",
-    "sqlalchemy>=2.0",
+    "sqlalchemy[asyncio]>=2.0",
     "httpx>=0.27",
     "pyyaml>=6.0",
     "cryptography>=42",
     "pyjwt>=2.8",
+    "aiosqlite>=0.20",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-asyncio>=0.23"]
+# Production Postgres driver. Install with `pip install -e ".[postgres]"` and set
+# SURGE_DATABASE_URL=postgresql://... (or postgresql+asyncpg://...) - both forms work.
+postgres = ["asyncpg>=0.29"]
 
 [build-system]
 requires = ["setuptools>=68"]
