@@ -68,3 +68,33 @@ class IdempotencyLedger:
                 row.external_result_id = external_result_id
             if external_url is not None:
                 row.external_url = external_url
+
+    # --- async twins, for callers migrated to AsyncSession ---
+
+    async def aget(self, key: str) -> LedgerEntry | None:
+        async with self.db.async_session() as s:
+            row = await s.get(IdempotencyRecord, key)
+            if row is None:
+                return None
+            return LedgerEntry(row.key, row.action_id, row.status, row.external_result_id, row.external_url, row.attempts)
+
+    async def abegin(self, key: str, action_id: str) -> int:
+        async with self.db.async_session() as s:
+            row = await s.get(IdempotencyRecord, key)
+            if row is None:
+                row = IdempotencyRecord(key=key, action_id=action_id, status="IN_PROGRESS", attempts=0)
+                s.add(row)
+            row.status = "IN_PROGRESS"
+            row.attempts = (row.attempts or 0) + 1
+            return row.attempts
+
+    async def aresolve(
+        self, key: str, status: str, *, external_result_id: str | None = None, external_url: str | None = None
+    ) -> None:
+        async with self.db.async_session() as s:
+            row = await s.get(IdempotencyRecord, key)
+            row.status = status
+            if external_result_id is not None:
+                row.external_result_id = external_result_id
+            if external_url is not None:
+                row.external_url = external_url

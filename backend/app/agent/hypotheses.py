@@ -236,6 +236,137 @@ class HypothesisEngine:
                     h.status = statuses[h.id]
                 h.missing_information = missing.get(h.id, [])
 
+    # --- async twins, for callers migrated to AsyncSession ---
+
+    async def agenerate(self, investigation_id: str) -> dict[str, str]:
+        ids = {}
+        async with self.db.async_session() as s:
+            for rank, template in enumerate(CATALOG.values()):
+                hid = new_id("hyp")
+                ids[template.kind] = hid
+                s.add(
+                    Hypothesis(
+                        id=hid,
+                        investigation_id=investigation_id,
+                        kind=template.kind,
+                        label=template.label,
+                        statement=template.statement,
+                        prior=template.prior,
+                        confidence=template.prior,
+                        status=HypothesisStatus.CANDIDATE.value,
+                        rationale="Generated after the anomaly was established; not yet tested.",
+                        rank=rank,
+                    )
+                )
+        return ids
+
+    async def aapply(
+        self, investigation_id: str, assessments: list[Assessment], hypothesis_ids: dict[str, str], evidence_ids: dict[str, str]
+    ) -> int:
+        applied = 0
+        async with self.db.async_session() as s:
+            for a in assessments:
+                hid = hypothesis_ids.get(a.hypothesis_kind)
+                eid = evidence_ids.get(a.evidence_key, a.evidence_key)
+                if hid is None or a.relation == Relation.NEUTRAL or (await s.get(EvidenceItem, eid)) is None:
+                    continue
+                existing = await s.scalar(
+                    select(EvidenceLink).where(EvidenceLink.evidence_id == eid, EvidenceLink.hypothesis_id == hid)
+                )
+                if existing:
+                    replace = a.assessed_by == "llm" and existing.assessed_by != "llm"
+                    replace = replace or STRENGTH_RANK[Strength(a.strength)] > STRENGTH_RANK[Strength(existing.strength)]
+                    if not replace:
+                        continue
+                    existing.relation, existing.strength = a.relation.value, Strength(a.strength).value
+                    existing.rationale, existing.assessed_by = a.rationale, a.assessed_by
+                else:
+                    s.add(
+                        EvidenceLink(
+                            investigation_id=investigation_id,
+                            evidence_id=eid,
+                            hypothesis_id=hid,
+                            relation=a.relation.value,
+                            strength=Strength(a.strength).value,
+                            rationale=a.rationale[:1000],
+                            assessed_by=a.assessed_by,
+                        )
+                    )
+                applied += 1
+        return applied
+
+    async def aviews(self, investigation_id: str) -> list[HypothesisView]:
+        async with self.db.async_session() as s:
+            hyps = (
+                await s.scalars(
+                    select(Hypothesis).where(Hypothesis.investigation_id == investigation_id).order_by(Hypothesis.rank)
+                )
+            ).all()
+            links = (
+                await s.scalars(select(EvidenceLink).where(EvidenceLink.investigation_id == investigation_id))
+            ).all()
+            evidence = {
+                e.id: e
+                for e in (
+                    await s.scalars(select(EvidenceItem).where(EvidenceItem.investigation_id == investigation_id))
+                ).all()
+            }
+            by_hyp: dict[str, list[EvidenceLink]] = defaultdict(list)
+            for link in links:
+                by_hyp[link.hypothesis_id].append(link)
+
+            views = []
+            for h in hyps:
+                link_views = [
+                    LinkView(
+                        evidence_id=l.evidence_id,
+                        app=evidence[l.evidence_id].source_app,
+                        relation=l.relation,
+                        strength=l.strength,
+                        rationale=l.rationale,
+                        assessed_by=l.assessed_by,
+                        title=evidence[l.evidence_id].title,
+                    )
+                    for l in by_hyp[h.id]
+                    if l.evidence_id in evidence
+                ]
+                confidence, support_apps = aggregate(h.prior, [(l.app, l.relation, l.strength) for l in link_views])
+                supporting = sorted(
+                    [l for l in link_views if l.relation == Relation.SUPPORTS],
+                    key=lambda l: -STRENGTH_RANK[Strength(l.strength)],
+                )
+                contradicting = sorted(
+                    [l for l in link_views if l.relation == Relation.CONTRADICTS],
+                    key=lambda l: -STRENGTH_RANK[Strength(l.strength)],
+                )
+                status = provisional_status(confidence, support_apps, bool(contradicting))
+                rationale = _rationale(supporting, contradicting)
+                h.confidence, h.status, h.rationale = confidence, status.value, rationale
+                views.append(
+                    HypothesisView(
+                        id=h.id,
+                        kind=h.kind,
+                        label=h.label,
+                        statement=h.statement,
+                        prior=h.prior,
+                        confidence=confidence,
+                        status=status.value,
+                        supporting=supporting,
+                        contradicting=contradicting,
+                        support_apps=support_apps,
+                        rationale=rationale,
+                    )
+                )
+            return views
+
+    async def afinalize(self, investigation_id: str, statuses: dict[str, str], missing: dict[str, list[str]]) -> None:
+        async with self.db.async_session() as s:
+            result = await s.scalars(select(Hypothesis).where(Hypothesis.investigation_id == investigation_id))
+            for h in result.all():
+                if h.id in statuses:
+                    h.status = statuses[h.id]
+                h.missing_information = missing.get(h.id, [])
+
 
 def _summarize(links: list[LinkView]) -> str:
     counts = Counter((l.rationale, l.app, l.strength) for l in links)

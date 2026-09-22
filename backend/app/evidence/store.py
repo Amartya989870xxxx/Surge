@@ -100,6 +100,62 @@ class EvidenceStore:
         with self.db.session() as s:
             return set(s.scalars(select(EvidenceItem.id).where(EvidenceItem.investigation_id == investigation_id)).all())
 
+    # --- async twins, for callers migrated to AsyncSession ---
+
+    async def aadd(
+        self, investigation_id: str, draft: EvidenceDraft, *, mode: str, probe_id: str, onset: datetime | None
+    ) -> tuple[str, bool]:
+        key = dedupe_key(draft.source_app, draft.source_type, draft.source_record_id)
+        async with self.db.async_session() as s:
+            existing = await s.scalar(
+                select(EvidenceItem).where(
+                    EvidenceItem.investigation_id == investigation_id, EvidenceItem.dedupe_key == key
+                )
+            )
+            if existing:
+                return existing.id, False
+            eid = new_id("ev")
+            s.add(
+                EvidenceItem(
+                    id=eid,
+                    investigation_id=investigation_id,
+                    source_app=draft.source_app,
+                    source_type=draft.source_type,
+                    source_record_id=draft.source_record_id,
+                    title=draft.title[:300],
+                    normalized_content=draft.content,
+                    observed_at=draft.observed_at,
+                    url=draft.url,
+                    source_metadata=_jsonable(draft.metadata),
+                    derived_from=draft.derived_from,
+                    relevance_score=relevance(draft, onset),
+                    evidence_strength=Strength(draft.strength).value,
+                    dedupe_key=key,
+                    connector_mode=mode,
+                    probe_id=probe_id,
+                )
+            )
+            return eid, True
+
+    async def alist(self, investigation_id: str) -> list[EvidenceItem]:
+        async with self.db.async_session() as s:
+            result = await s.scalars(
+                select(EvidenceItem)
+                .where(EvidenceItem.investigation_id == investigation_id)
+                .order_by(EvidenceItem.relevance_score.desc())
+            )
+            return list(result.all())
+
+    async def alinks(self, investigation_id: str) -> list[EvidenceLink]:
+        async with self.db.async_session() as s:
+            result = await s.scalars(select(EvidenceLink).where(EvidenceLink.investigation_id == investigation_id))
+            return list(result.all())
+
+    async def aexisting_ids(self, investigation_id: str) -> set[str]:
+        async with self.db.async_session() as s:
+            result = await s.scalars(select(EvidenceItem.id).where(EvidenceItem.investigation_id == investigation_id))
+            return set(result.all())
+
 
 def _jsonable(value):
     if isinstance(value, dict):

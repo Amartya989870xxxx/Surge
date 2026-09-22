@@ -30,6 +30,12 @@ def _sqlite_pragmas(dbapi_connection, _record) -> None:
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.execute("PRAGMA synchronous=NORMAL")
+    # WAL still serializes writers: only one connection can hold the write lock at a time.
+    # Now that a sync engine and an async engine both write to this same file, a sync write
+    # and an async write can land in the same instant from two different connections. Without
+    # a busy timeout, SQLite raises "database is locked" immediately instead of waiting for the
+    # other writer to finish; this makes the second writer block-and-retry for up to 5s instead.
+    cursor.execute("PRAGMA busy_timeout=5000")
     cursor.close()
 
 

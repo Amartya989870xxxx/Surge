@@ -37,18 +37,18 @@ class ActionExecutor:
         self.ledger = ledger
         self.lifecycle = lifecycle
 
-    def _update(self, action_id: str, **fields) -> Action:
-        with self.db.session() as s:
-            action = s.get(Action, action_id)
+    async def _update(self, action_id: str, **fields) -> Action:
+        async with self.db.async_session() as s:
+            action = await s.get(Action, action_id)
             for k, v in fields.items():
                 setattr(action, k, v)
-            s.flush()
+            await s.flush()
             s.expunge(action)
             return action
 
     async def execute(self, investigation_id: str, action_id: str, connectors) -> Action:
-        with self.db.session() as s:
-            action = s.get(Action, action_id)
+        async with self.db.async_session() as s:
+            action = await s.get(Action, action_id)
             s.expunge(action)
         if action.approval_required and action.approval_status != ApprovalStatus.APPROVED:
             raise PermissionError("Action has not been approved")
@@ -58,7 +58,7 @@ class ActionExecutor:
         marker = action_marker(key)
         succeeded = False
 
-        entry = self.ledger.get(key)
+        entry = await self.ledger.aget(key)
         if action.execution_status == ExecutionStatus.SUCCEEDED or (entry and entry.status == "SUCCEEDED"):
             ext = action.external_result_id or (entry.external_result_id if entry else None)
             self.bus.publish(
@@ -67,7 +67,7 @@ class ActionExecutor:
                 actor=Actor.SYSTEM, action_id=action.id, external_app=action.external_app,
                 summary=f"Existing result: {ext}", data={"idempotency_key": key, "external_result_id": ext},
             )
-            action = self._update(
+            action = await self._update(
                 action.id, execution_status=ExecutionStatus.SUCCEEDED.value,
                 external_result_id=ext, external_url=action.external_url or (entry.external_url if entry else None),
             )
@@ -80,13 +80,13 @@ class ActionExecutor:
             )
             found, ok = await self._lookup(ctx, action, marker)
             if found:
-                action = self._record_success(investigation_id, action, key, found, recovered=True)
+                action = await self._record_success(investigation_id, action, key, found, recovered=True)
                 succeeded = True
             elif not ok:
-                return self._mark_unknown(investigation_id, action, "Provider state could not be checked; not retrying blindly")
+                return await self._mark_unknown(investigation_id, action, "Provider state could not be checked; not retrying blindly")
 
         if not succeeded:
-            action = self._update(action.id, execution_status=ExecutionStatus.EXECUTING.value)
+            action = await self._update(action.id, execution_status=ExecutionStatus.EXECUTING.value)
             self.bus.publish(
                 investigation_id, EventType.ACTION_EXECUTING, f"Executing: {action.title}",
                 actor=Actor.AGENT, action_id=action.id, external_app=action.external_app, status="running",
@@ -94,15 +94,15 @@ class ActionExecutor:
             )
             tool, args = self._tool_call(action)
             for attempt in range(1, MAX_MUTATION_ATTEMPTS + 1):
-                self.ledger.begin(key, action.id)
-                action = self._update(action.id, attempts=attempt)
+                await self.ledger.abegin(key, action.id)
+                action = await self._update(action.id, attempts=attempt)
                 res = await self.runner.call(ctx, tool, args, purpose=action.title)
                 if res.success:
-                    action = self._record_success(investigation_id, action, key, res.data, recovered=False)
+                    action = await self._record_success(investigation_id, action, key, res.data, recovered=False)
                     succeeded = True
                     break
                 if res.error.ambiguous:
-                    self.ledger.resolve(key, "UNKNOWN")
+                    await self.ledger.aresolve(key, "UNKNOWN")
                     self.bus.publish(
                         investigation_id, EventType.ACTION_AMBIGUOUS,
                         f"{res.error.code}: outcome unknown, the provider may have applied the change",
@@ -112,11 +112,11 @@ class ActionExecutor:
                     )
                     found, ok = await self._lookup(ctx, action, marker)
                     if found:
-                        action = self._record_success(investigation_id, action, key, found, recovered=True)
+                        action = await self._record_success(investigation_id, action, key, found, recovered=True)
                         succeeded = True
                         break
                     if not ok:
-                        return self._mark_unknown(investigation_id, action, "Could not confirm provider state after an ambiguous failure")
+                        return await self._mark_unknown(investigation_id, action, "Could not confirm provider state after an ambiguous failure")
                     if attempt < MAX_MUTATION_ATTEMPTS:
                         self.bus.publish(
                             investigation_id, EventType.ACTION_EXECUTING,
@@ -126,8 +126,8 @@ class ActionExecutor:
                         continue
                 elif res.error.retryable and attempt < MAX_MUTATION_ATTEMPTS:
                     continue
-                self.ledger.resolve(key, "FAILED")
-                action = self._update(
+                await self.ledger.aresolve(key, "FAILED")
+                action = await self._update(
                     action.id, execution_status=ExecutionStatus.FAILED.value,
                     verification_status=VerificationStatus.NOT_APPLICABLE.value,
                     error=res.error.model_dump(), completed_at=datetime.now(UTC),
@@ -142,7 +142,7 @@ class ActionExecutor:
         if self.lifecycle.status(investigation_id) == InvestigationStatus.EXECUTING:
             self.lifecycle.transition(investigation_id, InvestigationStatus.VERIFYING, reason="Independently verifying the side effect")
         result = await self._verify(ctx, action, marker)
-        with self.db.session() as s:
+        async with self.db.async_session() as s:
             s.add(
                 Verification(
                     id=new_id("ver"), action_id=action.id, method=result.method, result=result.status.value,
@@ -150,7 +150,7 @@ class ActionExecutor:
                     confidence=result.confidence, error_code=result.error_code,
                 )
             )
-        action = self._update(
+        action = await self._update(
             action.id, verification_status=result.status.value,
             verification_details={"method": result.method, "checks": result.checks, "observed": result.observed},
             completed_at=datetime.now(UTC),
@@ -183,13 +183,13 @@ class ActionExecutor:
             return await find_issue_by_marker(self.runner, ctx, marker)
         return await find_comment_by_marker(self.runner, ctx, action.parameters["issue_number"], marker)
 
-    def _record_success(self, investigation_id: str, action: Action, key: str, data: dict, *, recovered: bool) -> Action:
+    async def _record_success(self, investigation_id: str, action: Action, key: str, data: dict, *, recovered: bool) -> Action:
         if action.action_type == "create_github_issue":
             ext, label = f"{action.target}#{data.get('number')}", f"issue #{data.get('number')}"
         else:
             ext, label = f"{action.target}/comment/{data.get('id')}", f"comment on #{action.parameters.get('issue_number')}"
-        self.ledger.resolve(key, "SUCCEEDED", external_result_id=ext, external_url=data.get("url"))
-        action = self._update(
+        await self.ledger.aresolve(key, "SUCCEEDED", external_result_id=ext, external_url=data.get("url"))
+        action = await self._update(
             action.id, execution_status=ExecutionStatus.SUCCEEDED.value,
             external_result_id=ext, external_url=data.get("url"), error=None,
         )
@@ -201,8 +201,8 @@ class ActionExecutor:
         )
         return action
 
-    def _mark_unknown(self, investigation_id: str, action: Action, why: str) -> Action:
-        action = self._update(
+    async def _mark_unknown(self, investigation_id: str, action: Action, why: str) -> Action:
+        action = await self._update(
             action.id, execution_status=ExecutionStatus.UNKNOWN.value,
             verification_status=VerificationStatus.UNKNOWN.value, completed_at=datetime.now(UTC),
         )

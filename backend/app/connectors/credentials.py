@@ -84,3 +84,52 @@ class CredentialStore:
                 return False
             s.delete(row)
             return True
+
+    # --- async twins, for callers migrated to AsyncSession ---
+
+    async def asave(
+        self,
+        app: str,
+        access_token: str,
+        *,
+        user_id: str = ANONYMOUS_USER_ID,
+        refresh_token: str | None = None,
+        account_label: str | None = None,
+        scopes: str | None = None,
+        expires_at: datetime | None = None,
+    ) -> None:
+        async with self.db.async_session() as s:
+            row = await s.get(ConnectorCredential, (user_id, app)) or ConnectorCredential(
+                user_id=user_id, app=app, encrypted_access_token=""
+            )
+            row.encrypted_access_token = self._enc(access_token)
+            if refresh_token:
+                row.encrypted_refresh_token = self._enc(refresh_token)
+            row.account_label = account_label
+            row.scopes = scopes
+            row.expires_at = expires_at
+            await s.merge(row)
+
+    async def aget(self, app: str, user_id: str = ANONYMOUS_USER_ID) -> dict | None:
+        async with self.db.async_session() as s:
+            row = await s.get(ConnectorCredential, (user_id, app))
+            if row is None:
+                return None
+            access = self._dec(row.encrypted_access_token)
+            if access is None:
+                return None
+            return {
+                "access_token": access,
+                "refresh_token": self._dec(row.encrypted_refresh_token),
+                "account_label": row.account_label,
+                "scopes": row.scopes,
+                "expires_at": row.expires_at,
+            }
+
+    async def adelete(self, app: str, user_id: str = ANONYMOUS_USER_ID) -> bool:
+        async with self.db.async_session() as s:
+            row = await s.get(ConnectorCredential, (user_id, app))
+            if row is None:
+                return False
+            await s.delete(row)
+            return True
